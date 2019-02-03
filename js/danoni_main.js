@@ -9,9 +9,7 @@
  * https://github.com/cwtickle/danoniplus
  */
 const g_version = `Ver 2.1.2`;
-const g_version_gauge = `Ver 0.5.1.20181223`;
-const g_version_musicEncoded = `Ver 0.1.1.20181224`;
-const g_version_lyrics = `Ver 0.2.0.20181230`;
+const g_version_storage = `Ver 0.1.0.20190130`;
 
 // カスタム用バージョン (danoni_custom.js 等で指定可)
 let g_localVersion = ``;
@@ -1438,6 +1436,43 @@ function initialControl() {
 		if (setVal(g_headerObj.preloadImages[j], ``, `string`) !== ``) {
 			preloadFile(`image`, g_headerObj.preloadImages[j], ``, ``);
 		}
+	}
+
+	// indexedDB初回定義
+	const idbName = location.href;
+	const idbReq = indexedDB.open(idbName);
+	const highscoreTbl = `highscore`;
+	g_headerObj.highscores = {};
+
+	idbReq.onupgradeneeded = function (e) {
+		const idb = e.target.result;
+		const objectStore = idb.createObjectStore(highscoreTbl, { keyPath: `scoreId` });
+		objectStore.createIndex(`highscore`, `highscore`, { unique: false });
+	}
+
+	idbReq.onsuccess = function (e) {
+		const idb = e.target.result;
+		const trans = idb.transaction(highscoreTbl, `readwrite`);
+		const store = trans.objectStore(highscoreTbl);
+
+		for (var j = 0; j < g_headerObj.keyLabels.length; j++) {
+			const reqScoreId = `${g_headerObj.keyLabels[j]}-${g_headerObj.difLabels[j]}`;
+			const getReq = store.get(reqScoreId);
+
+			getReq.onsuccess = function (e) {
+				g_headerObj.highscores[reqScoreId] = getReq.result.highscore;
+			}
+
+			getReq.onerror = function (e) {
+				const data = {
+					scoreId: reqScoreId,
+					highscore: 0
+				};
+				store.put(data);
+				g_headerObj.highscores[reqScoreId] = 0;
+			}
+		}
+		idb.close();
 	}
 
 	// customjs、音楽ファイルの読み込み
